@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolarPort EV — Power Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f5f6f8;--surface:#ffffff;--surface2:#f0f2f5;
+    --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+    --text:#1a1d24;--muted:#7a8299;--accent:#c8950a;
+    --blue:#1a6fd4;--red:#d63030;--orange:#c86010;--green:#1a8a5a;--purple:#6b3fcb;
+    --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,0,0,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+  .app{position:relative;z-index:1;max-width:1140px;margin:0 auto;padding:32px 24px 64px;}
+
+  header{margin-bottom:28px;}
+  .logo-row{display:flex;align-items:center;gap:14px;margin-bottom:8px;}
+  .logo-mark{width:40px;height:40px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;}
+  h1{font-size:28px;font-weight:800;letter-spacing:-0.03em;}
+  h1 span{color:var(--accent);}
+  .subtitle{color:var(--muted);font-size:12px;font-family:var(--mono);margin-top:3px;}
+  .carport-tag{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:5px 12px;font-size:11px;font-family:var(--mono);color:var(--muted);margin-top:10px;flex-wrap:wrap;}
+  .carport-tag span{color:var(--accent);font-weight:500;}
+
+  .scenario-row{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+  .sc-btn{font-family:var(--mono);font-size:11px;font-weight:500;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--muted);transition:all 0.18s;letter-spacing:0.05em;text-transform:uppercase;}
+  .sc-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .sc-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  .main-grid{display:grid;grid-template-columns:355px 1fr;gap:20px;align-items:start;}
+  @media(max-width:880px){.main-grid{grid-template-columns:1fr;}}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:14px;}
+  .panel:last-child{margin-bottom:0;}
+  .panel-head{padding:11px 18px 9px;border-bottom:1px solid var(--border);font-size:10px;font-family:var(--mono);letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;}
+  .panel-head .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+  .panel-body{padding:16px 18px;}
+
+  /* Stepper */
+  .stepper-ctrl{margin-bottom:16px;}
+  .stepper-ctrl:last-child{margin-bottom:0;}
+  .stepper-label{font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:7px;}
+  .stepper-row{display:flex;align-items:center;}
+  .step-btn{width:34px;height:34px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;user-select:none;font-family:var(--mono);flex-shrink:0;}
+  .step-btn:first-child{border-radius:6px 0 0 6px;}
+  .step-btn:last-child{border-radius:0 6px 6px 0;}
+  .step-btn:hover{background:var(--border2);color:var(--accent);}
+  .step-val{flex:1;text-align:center;font-size:20px;font-weight:700;font-family:var(--mono);background:var(--surface2);border-top:1px solid var(--border2);border-bottom:1px solid var(--border2);padding:4px 0;line-height:1.4;}
+  .step-sub{font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:5px;line-height:1.5;}
+
+  /* Segmented toggle */
+  .seg-ctrl{margin-bottom:16px;}
+  .seg-ctrl:last-child{margin-bottom:0;}
+  .seg-label{font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:7px;}
+  .seg-row{display:flex;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;overflow:hidden;}
+  .seg-opt{flex:1;padding:9px 4px;text-align:center;font-size:14px;font-weight:700;font-family:var(--mono);cursor:pointer;transition:all 0.15s;color:var(--muted);}
+  .seg-opt:hover{color:var(--text);}
+  .seg-opt.active{background:var(--blue);color:#fff;}
+
+  /* Sliders */
+  .ctrl{margin-bottom:16px;}
+  .ctrl:last-child{margin-bottom:0;}
+  .ctrl-label{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;}
+  .ctrl-name{font-size:11px;color:var(--muted);font-family:var(--mono);}
+  .ctrl-val{font-size:16px;font-weight:700;font-family:var(--mono);color:var(--text);}
+  .ctrl-unit{font-size:10px;color:var(--muted);margin-left:2px;}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--border2);border-radius:2px;cursor:pointer;outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 3px rgba(200,149,10,0.2);transition:box-shadow 0.15s;}
+  input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 5px rgba(200,149,10,0.3);}
+  input[type=range].green::-webkit-slider-thumb{background:var(--green);box-shadow:0 0 0 3px rgba(26,138,90,0.2);}
+  input[type=range].blue::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 0 3px rgba(26,111,212,0.2);}
+  input[type=range].orange::-webkit-slider-thumb{background:var(--orange);box-shadow:0 0 0 3px rgba(200,96,16,0.2);}
+  .range-hints{display:flex;justify-content:space-between;margin-top:3px;}
+  .range-hint{font-size:9px;font-family:var(--mono);color:var(--muted);opacity:0.6;}
+  .ctrl-sep{border:none;border-top:1px solid var(--border);margin:12px 0;}
+
+  /* Right column */
+  .results-col{display:flex;flex-direction:column;gap:13px;}
+
+  /* Power budget — key line */
+  .budget-panel{background:var(--surface);border:1px solid rgba(240,192,64,0.3);border-radius:14px;overflow:hidden;}
+  .budget-head{padding:11px 18px 9px;border-bottom:1px solid var(--border);font-size:10px;font-family:var(--mono);letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:8px;}
+  .budget-body{padding:16px 18px;}
+  .power-budget{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;margin-bottom:12px;}
+  .pb-item{display:flex;flex-direction:column;align-items:center;gap:1px;}
+  .pb-label{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
+  .pb-val{font-size:20px;font-weight:700;font-family:var(--mono);}
+  .pb-op{font-size:18px;font-weight:400;color:var(--muted);align-self:center;padding:0 2px;}
+  .pb-eq{font-size:20px;font-weight:700;color:var(--accent);align-self:center;padding:0 6px;}
+  .pb-result{font-size:30px;font-weight:800;font-family:var(--mono);color:var(--accent);}
+  .budget-explain{font-size:11px;font-family:var(--mono);color:var(--muted);line-height:1.7;border-top:1px solid var(--border);padding-top:10px;margin-top:4px;}
+
+  /* Status */
+  .status-banner{border-radius:10px;padding:13px 16px;display:flex;align-items:center;gap:12px;border:1px solid;transition:all 0.3s;}
+  .status-banner.ok{background:rgba(61,232,160,0.07);border-color:rgba(61,232,160,0.25);}
+  .status-banner.warn{background:rgba(255,140,66,0.07);border-color:rgba(255,140,66,0.25);}
+  .status-banner.crit{background:rgba(255,90,90,0.07);border-color:rgba(255,90,90,0.25);}
+  .status-icon{font-size:22px;flex-shrink:0;}
+  .status-label{font-size:15px;font-weight:700;}
+  .status-detail{font-size:11px;font-family:var(--mono);color:var(--muted);margin-top:2px;}
+  .status-banner.ok .status-label{color:var(--green);}
+  .status-banner.warn .status-label{color:var(--orange);}
+  .status-banner.crit .status-label{color:var(--red);}
+
+  /* Metrics */
+  .metric-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  @media(max-width:600px){.metric-grid{grid-template-columns:1fr 1fr;}}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;}
+  .metric.hl{border-color:var(--border2);background:var(--surface2);}
+  .m-label{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;}
+  .m-val{font-size:23px;font-weight:700;line-height:1;margin-bottom:3px;font-family:var(--mono);}
+  .m-val.ok{color:var(--green);}.m-val.warn{color:var(--orange);}.m-val.crit{color:var(--red);}
+  .m-val.blue{color:var(--blue);}.m-val.yellow{color:var(--accent);}.m-val.purple{color:var(--purple);}
+  .m-sub{font-size:9px;color:var(--muted);font-family:var(--mono);}
+
+  /* Inverter bar */
+  .inv-bar-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;}
+  .inv-bar-title{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;}
+  .inv-cap-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+  .inv-cap-label{font-size:10px;font-family:var(--mono);color:var(--muted);}
+  .inv-cap-val{font-size:13px;font-weight:700;font-family:var(--mono);color:var(--accent);}
+  .inv-bar-track{height:20px;background:var(--border);border-radius:5px;overflow:hidden;}
+  .inv-bar-fill{height:100%;border-radius:5px;transition:width 0.4s,background 0.4s;display:flex;align-items:center;padding-left:10px;min-width:2px;}
+  .inv-bar-lbl{font-size:11px;font-family:var(--mono);font-weight:600;color:#000;white-space:nowrap;}
+  .seg-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;display:flex;margin-top:8px;}
+  .seg-bar div{height:100%;transition:width 0.4s;}
+  .inv-legend{display:flex;gap:12px;margin-top:7px;flex-wrap:wrap;}
+  .leg-item{display:flex;align-items:center;gap:5px;font-size:9px;font-family:var(--mono);color:var(--muted);}
+  .leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+
+  /* Flow */
+  .flow-panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;}
+  .flow-title{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;}
+  .flow-grid{display:grid;grid-template-columns:1fr 24px 1fr 24px 1fr;align-items:center;}
+  .flow-node{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 6px 7px;text-align:center;}
+  .fn-icon{font-size:15px;margin-bottom:2px;}
+  .fn-name{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;}
+  .fn-val{font-size:14px;font-weight:700;font-family:var(--mono);margin-top:2px;}
+  .flow-arrow{text-align:center;}
+
+  /* Notes */
+  .note{border-radius:8px;padding:9px 12px;font-size:11px;font-family:var(--mono);line-height:1.6;border:1px solid;}
+  .note.warn{background:rgba(255,140,66,0.06);border-color:rgba(255,140,66,0.25);color:var(--orange);}
+  .note.crit{background:rgba(255,90,90,0.06);border-color:rgba(255,90,90,0.25);color:var(--red);}
+  .note.info{background:rgba(74,168,255,0.06);border-color:rgba(74,168,255,0.2);color:var(--blue);}
+  .note.success{background:rgba(61,232,160,0.06);border-color:rgba(61,232,160,0.2);color:var(--green);}
+
+  .sec-label{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:7px;opacity:0.7;}
+  .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;}
+  .spec-k{font-size:10px;font-family:var(--mono);color:var(--muted);}
+  .spec-v{font-size:10px;font-family:var(--mono);color:var(--text);text-align:right;}
+
+  /* Cost section */
+  .cost-panel{background:var(--surface);border:1px solid rgba(26,111,212,0.25);border-radius:14px;overflow:hidden;}
+  .cost-head{padding:11px 18px 9px;border-bottom:1px solid var(--border);font-size:10px;font-family:var(--mono);letter-spacing:0.1em;text-transform:uppercase;color:var(--blue);display:flex;align-items:center;gap:8px;}
+  .cost-body{padding:16px 18px;}
+  .cost-lines{display:flex;flex-direction:column;gap:0;}
+  .cost-line{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+  .cost-line:last-child{border-bottom:none;}
+  .cost-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+  .cost-line-label{flex:1;font-size:12px;font-family:var(--mono);color:var(--text);}
+  .cost-line-qty{font-size:11px;font-family:var(--mono);color:var(--muted);min-width:80px;text-align:right;}
+  .cost-line-unit{font-size:11px;font-family:var(--mono);color:var(--muted);min-width:70px;text-align:right;}
+  .cost-line-total{font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text);min-width:90px;text-align:right;}
+  .cost-divider{border:none;border-top:2px solid var(--border2);margin:10px 0;}
+  .cost-total-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .cost-total-label{font-size:13px;font-weight:700;color:var(--text);}
+  .cost-total-sub{font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:2px;}
+  .cost-total-val{font-size:30px;font-weight:800;font-family:var(--mono);color:var(--blue);}
+  .cost-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;}
+  .cost-kpi{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .cost-kpi-label{font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px;}
+  .cost-kpi-val{font-size:18px;font-weight:700;font-family:var(--mono);color:var(--blue);}
+  .cost-kpi-sub{font-size:9px;font-family:var(--mono);color:var(--muted);margin-top:2px;}
+  .cost-disclaimer{font-size:10px;font-family:var(--mono);color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:10px;font-style:italic;}
+
+  footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+  .footer-brand{font-size:11px;font-family:var(--mono);color:var(--muted);}
+  .footer-brand span{color:var(--accent);}
+  .footer-spec{font-size:10px;font-family:var(--mono);color:var(--muted);opacity:0.5;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo-row">
+      <div class="logo-mark">SP</div>
+      <div>
+        <h1>Solar<span>Port</span> EV</h1>
+        <div class="subtitle">// off-grid ev charging · power scenario calculator · v2.0</div>
+      </div>
+    </div>
+    <div class="carport-tag">
+      Solar carport for <span>24 cars</span>&nbsp;·&nbsp;
+      156 × 445 Wp = <span>69.4 kWp</span>&nbsp;·&nbsp;
+      Off-grid — <span>no grid connection required</span>&nbsp;·&nbsp;
+      <span>Innoventum.se</span>
+    </div>
+  </header>
+
+  <div class="scenario-row">
+    <button class="sc-btn" id="btn-custom" onclick="setScenario('custom')">Custom</button>
+    <button class="sc-btn" id="btn-low"    onclick="setScenario('low')">Low usage</button>
+    <button class="sc-btn" id="btn-med"    onclick="setScenario('med')">Medium usage</button>
+    <button class="sc-btn" id="btn-high"   onclick="setScenario('high')">High usage</button>
+  </div>
+
+  <div class="main-grid">
+
+    <!-- LEFT -->
+    <div>
+
+      <!-- System config -->
+      <div class="panel">
+        <div class="panel-head"><div class="dot" style="background:var(--purple)"></div>System configuration</div>
+        <div class="panel-body">
+
+          <div class="stepper-ctrl">
+            <div class="stepper-label">Number of inverters</div>
+            <div class="stepper-row">
+              <div class="step-btn" onclick="adj('inv_n',-1)">−</div>
+              <div class="step-val" id="v-inv-n">1</div>
+              <div class="step-btn" onclick="adj('inv_n',+1)">+</div>
+            </div>
+            <div class="step-sub" id="sub-inv"></div>
+          </div>
+
+          <div class="ctrl-sep"></div>
+
+          <div class="stepper-ctrl">
+            <div class="stepper-label">Battery modules per inverter &nbsp;<span style="color:var(--muted);font-size:10px">(4–21 per spec · 12.06 kWh each)</span></div>
+            <div class="stepper-row">
+              <div class="step-btn" onclick="adj('batt_per_inv',-1)">−</div>
+              <div class="step-val" id="v-batt-pi">20</div>
+              <div class="step-btn" onclick="adj('batt_per_inv',+1)">+</div>
+            </div>
+            <div class="step-sub" id="sub-batt"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- EV load -->
+      <div class="panel">
+        <div class="panel-head"><div class="dot"></div>EV charger load</div>
+        <div class="panel-body">
+
+          <div class="ctrl">
+            <div class="ctrl-label">
+              <span class="ctrl-name">AC chargers active</span>
+              <span><span class="ctrl-val" id="v-ac-n">6</span><span class="ctrl-unit">/ 24 spaces</span></span>
+            </div>
+            <input type="range" id="sl-ac-n" min="0" max="24" step="1" value="6"
+              oninput="state.ac_n=+this.value;setScenario('custom');calc()">
+            <div class="range-hints"><span class="range-hint">0</span><span class="range-hint">24 spaces</span></div>
+          </div>
+
+          <div class="seg-ctrl">
+            <div class="seg-label">AC power / charger</div>
+            <div class="seg-row">
+              <div class="seg-opt" id="seg-11" onclick="setAcW(11)">11 kW</div>
+              <div class="seg-opt active" id="seg-22" onclick="setAcW(22)">22 kW</div>
+            </div>
+          </div>
+
+          <div class="ctrl-sep"></div>
+
+          <div class="ctrl">
+            <div class="ctrl-label">
+              <span class="ctrl-name">DC fast chargers active</span>
+              <span><span class="ctrl-val" id="v-dc-n">0</span><span class="ctrl-unit">/ 2</span></span>
+            </div>
+            <input type="range" id="sl-dc-n" min="0" max="2" step="1" value="0" class="green"
+              oninput="state.dc_n=+this.value;setScenario('custom');calc()">
+          </div>
+
+          <div class="ctrl">
+            <div class="ctrl-label">
+              <span class="ctrl-name">DC power / charger</span>
+              <span><span class="ctrl-val" id="v-dc-w">60</span><span class="ctrl-unit">kW</span></span>
+            </div>
+            <input type="range" id="sl-dc-w" min="20" max="120" step="20" value="60" class="green"
+              oninput="state.dc_w=+this.value;setScenario('custom');calc()">
+            <div class="range-hints"><span class="range-hint">20 kW</span><span class="range-hint">120 kW</span></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Energy sources -->
+      <div class="panel">
+        <div class="panel-head"><div class="dot" style="background:var(--orange)"></div>Energy sources</div>
+        <div class="panel-body">
+
+          <div class="ctrl">
+            <div class="ctrl-label">
+              <span class="ctrl-name">Solar output</span>
+              <span><span class="ctrl-val" id="v-pv" style="color:var(--accent)">40</span><span class="ctrl-unit">kW</span></span>
+            </div>
+            <input type="range" id="sl-pv" min="0" max="69" step="1" value="40" class="orange"
+              oninput="state.pv=+this.value;setScenario('custom');calc()">
+            <div class="range-hints"><span class="range-hint">0 kW (night)</span><span class="range-hint">69.4 kW (peak)</span></div>
+          </div>
+
+          <div class="ctrl">
+            <div class="ctrl-label">
+              <span class="ctrl-name">Battery SOC</span>
+              <span><span class="ctrl-val" id="v-soc" style="color:var(--green)">70</span><span class="ctrl-unit">%</span></span>
+            </div>
+            <input type="range" id="sl-soc" min="10" max="100" step="5" value="70" class="green"
+              oninput="state.soc=+this.value;setScenario('custom');calc()">
+            <div class="range-hints"><span class="range-hint">10% reserve</span><span class="range-hint">100% full</span></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Spec table -->
+      <div class="panel">
+        <div class="panel-head"><div class="dot" style="background:var(--muted)"></div>System specification</div>
+        <div class="panel-body">
+          <div class="spec-grid" id="spec-grid"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div class="results-col">
+
+      <!-- Power budget — KEY LINE -->
+      <div class="budget-panel">
+        <div class="budget-head">⚡ Available power for EV charging</div>
+        <div class="budget-body">
+          <div class="power-budget" id="power-budget"></div>
+          <div class="budget-explain" id="budget-explain"></div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="status-banner ok" id="status-banner">
+        <div class="status-icon" id="status-icon">✓</div>
+        <div>
+          <div class="status-label" id="status-label">Balanced</div>
+          <div class="status-detail" id="status-detail">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Inverter bar -->
+      <div class="inv-bar-wrap">
+        <div class="inv-bar-title">Total inverter AC output utilisation</div>
+        <div class="inv-cap-row">
+          <span class="inv-cap-label">Effective output</span>
+          <span class="inv-cap-val" id="inv-cap-val">—</span>
+        </div>
+        <div class="inv-bar-track">
+          <div class="inv-bar-fill" id="inv-bar" style="width:0%;background:var(--green)">
+            <span class="inv-bar-lbl" id="inv-bar-lbl"></span>
+          </div>
+        </div>
+        <div class="seg-bar">
+          <div id="seg-pv"  style="background:var(--orange)"></div>
+          <div id="seg-bat" style="background:var(--green)"></div>
+          <div id="seg-ac"  style="background:var(--blue)"></div>
+          <div id="seg-dc"  style="background:var(--accent)"></div>
+          <div id="seg-anc" style="background:var(--muted)"></div>
+        </div>
+        <div class="inv-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--orange)"></div>Solar</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Battery</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div>AC chargers</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--accent)"></div>DC chargers</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--muted)"></div>Ancillary</div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div>
+        <div class="sec-label">Key metrics</div>
+        <div class="metric-grid" id="metric-grid"></div>
+      </div>
+
+      <!-- Flow -->
+      <div class="flow-panel">
+        <div class="flow-title">Real-time power flow</div>
+        <div class="flow-grid" id="flow-grid"></div>
+      </div>
+
+      <!-- Notes -->
+      <div id="notes-area"></div>
+
+      <!-- Cost section -->
+      <div class="cost-panel">
+        <div class="cost-head">€ Estimated retail cost structure</div>
+        <div class="cost-body">
+          <div class="cost-lines" id="cost-lines"></div>
+          <div class="cost-divider"></div>
+          <div class="cost-total-row">
+            <div>
+              <div class="cost-total-label">Total retail estimate</div>
+              <div class="cost-total-sub" id="cost-total-sub"></div>
+            </div>
+            <div class="cost-total-val" id="cost-total-val"></div>
+          </div>
+          <div class="cost-kpi-row" id="cost-kpi-row"></div>
+          <div class="cost-disclaimer">Retail prices excl. VAT. Actual project cost subject to site survey, installation complexity, and volume discounts. Contact Innoventum.se for a project-specific quotation.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-brand">SolarPort EV — developed by <span>Innoventum.se</span></div>
+    <div class="footer-spec">Sigen Hybrid 100 kW M1 · Off-grid mode · 400V 3Φ AC bus · 24-space solar carport</div>
+  </footer>
+
+</div>
+<script>
+const INV_KW      = 100;
+const INV_MAX_N   = 4;
+const MODULE_KWH  = 12.06;    // kWh per SigenStack BAT 12.0 module
+const MODULES_MAX = 21;       // max modules per inverter (4~21 per spec)
+const BESS_C_RATE = 1.0;
+const ANC         = 1.2;
+const PV_MAX      = 69.4;
+
+const state = { inv_n:1, batt_per_inv:21, ac_n:6, ac_w:22, dc_n:0, dc_w:60, pv:40, soc:70 };
+
+const SCENARIOS = {
+  low:  { inv_n:1, batt_per_inv:21, ac_n:6,  ac_w:22, dc_n:0, dc_w:60,  pv:40, soc:80 },
+  med:  { inv_n:1, batt_per_inv:21, ac_n:12, ac_w:22, dc_n:1, dc_w:60,  pv:55, soc:60 },
+  high: { inv_n:2, batt_per_inv:21, ac_n:24, ac_w:22, dc_n:2, dc_w:120, pv:30, soc:45 },
+};
+
+function adj(key, d) {
+  const lim = { inv_n:{min:1,max:4}, batt_per_inv:{min:4,max:21} };
+  state[key] = Math.max(lim[key].min, Math.min(lim[key].max, state[key]+d));
+  setScenario('custom'); calc();
+}
+
+function setAcW(v) {
+  state.ac_w = v;
+  document.getElementById('seg-11').classList.toggle('active', v===11);
+  document.getElementById('seg-22').classList.toggle('active', v===22);
+  setScenario('custom'); calc();
+}
+
+function setScenario(name) {
+  document.querySelectorAll('.sc-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-'+name).classList.add('active');
+  if (name !== 'custom') { Object.assign(state, SCENARIOS[name]); syncUI(); }
+  calc();
+}
+
+function syncUI() {
+  document.getElementById('sl-ac-n').value = state.ac_n;
+  document.getElementById('sl-dc-n').value = state.dc_n;
+  document.getElementById('sl-dc-w').value = state.dc_w;
+  document.getElementById('sl-pv').value   = state.pv;
+  document.getElementById('sl-soc').value  = state.soc;
+  setAcW(state.ac_w);
+}
+
+const r  = (n,d=0) => d===0 ? Math.round(n) : parseFloat(n.toFixed(d));
+const pc = (v,m)   => Math.min(100, Math.max(0, m>0 ? v/m*100 : 0));
+const fmt = n => n.toLocaleString('sv-SE', {maximumFractionDigits:1});
+
+function calc() {
+  const INV_MAX  = state.inv_n * INV_KW;
+  const BESS_CAP = state.inv_n * state.batt_per_inv * MODULE_KWH;
+
+  // update steppers
+  document.getElementById('v-inv-n').textContent   = state.inv_n;
+  document.getElementById('v-batt-pi').textContent = state.batt_per_inv;
+  document.getElementById('v-ac-n').textContent    = state.ac_n;
+  document.getElementById('v-dc-n').textContent    = state.dc_n;
+  document.getElementById('v-dc-w').textContent    = state.dc_w;
+  document.getElementById('v-pv').textContent      = state.pv;
+  document.getElementById('v-soc').textContent     = state.soc;
+
+  document.getElementById('sub-inv').innerHTML =
+    `${state.inv_n}× Sigen Hybrid 100 kW M1 = <span style="color:var(--accent)">${INV_MAX} kW</span> total AC output`;
+  document.getElementById('sub-batt').innerHTML =
+    `${state.batt_per_inv} mod × ${MODULE_KWH} kWh × ${state.inv_n} inv. = ` +
+    `<span style="color:var(--green)">${fmt(BESS_CAP)} kWh</span> total BESS`;
+
+  // load
+  const raw_ac    = state.ac_n * state.ac_w;
+  const raw_dc    = state.dc_n * state.dc_w;
+  const raw_ev    = raw_ac + raw_dc;
+  const raw_total = raw_ev + ANC;
+
+  // battery
+  const batt_usable = Math.max(0, (state.soc-10)/100 * BESS_CAP);
+  const batt_avail  = Math.min(BESS_CAP * BESS_C_RATE, batt_usable * 2);
+
+  // throttle
+  let throttle=false, t_ac_w=state.ac_w, eff_total=raw_total;
+  if (raw_total > INV_MAX) {
+    throttle = true;
+    const ac_budget = INV_MAX - raw_dc - ANC;
+    t_ac_w    = ac_budget>0 && state.ac_n>0 ? Math.max(1.4, ac_budget/state.ac_n) : 0;
+    eff_total = Math.min((state.ac_n*t_ac_w)+raw_dc+ANC, INV_MAX);
+  }
+
+  // source split
+  const from_pv    = Math.min(state.pv, eff_total);
+  const remaining  = Math.max(0, eff_total-from_pv);
+  const from_batt  = Math.min(batt_avail, remaining);
+  const unserved   = Math.max(0, remaining-from_batt);
+  const surplus_pv = Math.max(0, state.pv-eff_total);
+  const batt_hrs   = from_batt>0.1 ? batt_usable/from_batt : null;
+  const solar_shr  = eff_total>0 ? from_pv/eff_total*100 : 0;
+  const ev_budget  = INV_MAX - ANC;
+
+  // ── Power budget ──
+  document.getElementById('power-budget').innerHTML = `
+    <div class="pb-item">
+      <div class="pb-label">Inverters</div>
+      <div class="pb-val" style="color:var(--purple)">${state.inv_n} × ${INV_KW} kW</div>
+    </div>
+    <div class="pb-op">−</div>
+    <div class="pb-item">
+      <div class="pb-label">Ancillary</div>
+      <div class="pb-val" style="color:var(--muted)">${ANC} kW</div>
+    </div>
+    <div class="pb-eq">=</div>
+    <div class="pb-item">
+      <div class="pb-label">Max. power for EV charging</div>
+      <div class="pb-result">${r(ev_budget)} kW</div>
+    </div>
+  `;
+  document.getElementById('budget-explain').innerHTML =
+    `The combined AC output ceiling of ${state.inv_n > 1 ? state.inv_n+' inverters in parallel' : 'the inverter'} ` +
+    `is <span style="color:var(--accent)">${INV_MAX} kW</span>. ` +
+    `After reserving ${ANC} kW for ancillary loads (LED lighting + IoT), ` +
+    `<span style="color:var(--accent);font-weight:600">${r(ev_budget)} kW</span> is available for EV charging at all times. ` +
+    `Current EV demand: ` +
+    `<span style="color:${raw_ev > ev_budget ? 'var(--red)' : 'var(--green)'}">${r(raw_ev)} kW</span> ` +
+    `(${state.ac_n}×${r(t_ac_w,1)} kW AC + ${state.dc_n}×${state.dc_w} kW DC).`;
+
+  // ── Status ──
+  let status='ok', slabel='System balanced', sdetail='';
+  if (unserved>1) {
+    status='crit'; slabel='Demand exceeds capacity';
+    sdetail=`${r(unserved)} kW unserved — add an inverter (+100 kW) or reduce active chargers`;
+  } else if (throttle) {
+    status='warn'; slabel='EVMS throttling active';
+    sdetail=`AC chargers reduced ${r(state.ac_w,1)} → ${r(t_ac_w,1)} kW each to stay within ${INV_MAX} kW`;
+  } else {
+    sdetail=`Inverter at ${r(eff_total/INV_MAX*100)}% · solar covers ${r(solar_shr)}% of load`;
+  }
+  const banner = document.getElementById('status-banner');
+  banner.className = 'status-banner '+status;
+  document.getElementById('status-icon').textContent  = status==='ok'?'✓':status==='warn'?'⚡':'✗';
+  document.getElementById('status-label').textContent = slabel;
+  document.getElementById('status-detail').textContent = sdetail;
+
+  // ── Inv bar ──
+  const bar_col = eff_total>INV_MAX*0.95?'var(--red)':eff_total>INV_MAX*0.8?'var(--orange)':'var(--green)';
+  document.getElementById('inv-bar').style.cssText = `width:${pc(eff_total,INV_MAX)}%;background:${bar_col}`;
+  document.getElementById('inv-bar-lbl').textContent = r(eff_total)+' kW';
+  document.getElementById('inv-cap-val').textContent = `${r(eff_total)} / ${INV_MAX} kW`;
+  document.getElementById('seg-pv').style.width  = pc(from_pv, INV_MAX)+'%';
+  document.getElementById('seg-bat').style.width = pc(from_batt, INV_MAX)+'%';
+  document.getElementById('seg-ac').style.width  = pc(state.ac_n*t_ac_w, INV_MAX)+'%';
+  document.getElementById('seg-dc').style.width  = pc(raw_dc, INV_MAX)+'%';
+  document.getElementById('seg-anc').style.width = pc(ANC, INV_MAX)+'%';
+
+  // ── Metrics ──
+  document.getElementById('metric-grid').innerHTML = `
+    <div class="metric hl">
+      <div class="m-label">Total AC output</div>
+      <div class="m-val purple">${INV_MAX}<span style="font-size:11px"> kW</span></div>
+      <div class="m-sub">${state.inv_n}× Sigen 100 kW M1</div>
+    </div>
+    <div class="metric hl">
+      <div class="m-label">EV power available</div>
+      <div class="m-val yellow">${r(ev_budget)}<span style="font-size:11px"> kW</span></div>
+      <div class="m-sub">after ${ANC} kW ancillary</div>
+    </div>
+    <div class="metric hl">
+      <div class="m-label">Total BESS</div>
+      <div class="m-val ok">${r(BESS_CAP)}<span style="font-size:11px"> kWh</span></div>
+      <div class="m-sub">${state.inv_n}×${state.batt_per_inv} mod · ${r(batt_usable)} kWh usable</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">EV load requested</div>
+      <div class="m-val ${raw_ev>ev_budget?'crit':'ok'}">${r(raw_ev)}<span style="font-size:11px"> kW</span></div>
+      <div class="m-sub">${state.ac_n}×AC + ${state.dc_n}×DC</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">Solar coverage</div>
+      <div class="m-val yellow">${r(solar_shr)}<span style="font-size:11px">%</span></div>
+      <div class="m-sub">${r(from_pv)} of ${state.pv} kW avail</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">Battery runtime</div>
+      <div class="m-val ${batt_hrs!==null&&batt_hrs<1?'crit':batt_hrs!==null&&batt_hrs<3?'warn':'ok'}">
+        ${batt_hrs===null?'∞':r(batt_hrs,1)}<span style="font-size:11px">${batt_hrs===null?'':' h'}</span>
+      </div>
+      <div class="m-sub">${batt_hrs===null?'Solar covers load':'until 10% SOC reserve'}</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">AC throttle / charger</div>
+      <div class="m-val ${throttle?'warn':'ok'}">${r(t_ac_w,1)}<span style="font-size:11px"> kW</span></div>
+      <div class="m-sub">${throttle?'reduced from '+r(state.ac_w,1)+' kW':'no throttle needed'}</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">Battery contribution</div>
+      <div class="m-val ${state.soc<20?'crit':state.soc<35?'warn':'ok'}">${r(from_batt)}<span style="font-size:11px"> kW</span></div>
+      <div class="m-sub">SOC ${state.soc}% · ${r(batt_avail)} kW avail</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">Effective output</div>
+      <div class="m-val ${eff_total>INV_MAX*0.95?'warn':'ok'}">${r(eff_total)}<span style="font-size:11px"> kW</span></div>
+      <div class="m-sub">${r(eff_total/INV_MAX*100)}% of ${INV_MAX} kW ceiling</div>
+    </div>
+  `;
+
+  // ── Flow ──
+  document.getElementById('flow-grid').innerHTML = `
+    <div class="flow-node">
+      <div class="fn-icon">☀</div>
+      <div class="fn-name">Solar</div>
+      <div class="fn-val" style="color:var(--accent)">${r(state.pv)} kW</div>
+      <div style="font-size:9px;font-family:var(--mono);color:var(--muted);margin-top:1px">${r(state.pv/PV_MAX*100)}% peak</div>
+    </div>
+    <div class="flow-arrow">
+      <svg width="24" height="14" viewBox="0 0 24 14" style="display:block;margin:0 auto">
+        <line x1="1" y1="7" x2="18" y2="7" stroke="rgba(0,0,0,0.2)" stroke-width="1.5"/>
+        <polyline points="12,2 20,7 12,12" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="flow-node" style="border-color:rgba(200,149,10,0.3)">
+      <div class="fn-icon">⚡</div>
+      <div class="fn-name">${state.inv_n}× Inverter</div>
+      <div class="fn-val" style="color:var(--accent)">${r(eff_total)} kW</div>
+      <div style="font-size:9px;font-family:var(--mono);color:var(--muted);margin-top:1px">${r(eff_total/INV_MAX*100)}% load</div>
+    </div>
+    <div class="flow-arrow">
+      <svg width="24" height="14" viewBox="0 0 24 14" style="display:block;margin:0 auto">
+        <line x1="1" y1="7" x2="18" y2="7" stroke="rgba(0,0,0,0.2)" stroke-width="1.5"/>
+        <polyline points="12,2 20,7 12,12" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="flow-node">
+      <div class="fn-icon">🚗</div>
+      <div class="fn-name">EV load</div>
+      <div class="fn-val" style="color:var(--blue)">${r(raw_ev)} kW</div>
+      <div style="font-size:9px;font-family:var(--mono);color:var(--muted);margin-top:1px">${state.ac_n}×AC · ${state.dc_n}×DC</div>
+    </div>
+  `;
+
+  // ── Spec table ──
+  document.getElementById('spec-grid').innerHTML = `
+    <div class="spec-k">Inverters</div><div class="spec-v">${state.inv_n}× Sigen Hybrid 100 kW M1</div>
+    <div class="spec-k">Total AC output</div><div class="spec-v">${INV_MAX} kW</div>
+    <div class="spec-k">BESS modules</div><div class="spec-v">${state.inv_n*state.batt_per_inv} × SigenStack BAT 12.0</div>
+    <div class="spec-k">Total BESS</div><div class="spec-v">${fmt(BESS_CAP)} kWh</div>
+    <div class="spec-k">Solar PV</div><div class="spec-v">156 × 445 Wp = 69.4 kWp</div>
+    <div class="spec-k">AC chargers</div><div class="spec-v">24 × Type 2, 11 / 22 kW</div>
+    <div class="spec-k">DC chargers</div><div class="spec-v">2 × dual-port, up to 120 kW</div>
+    <div class="spec-k">Carport spaces</div><div class="spec-v">24 · off-grid</div>
+  `;
+
+  // ── Notes ──
+  let notes = '';
+  if (surplus_pv>0.5) notes += `<div class="note success" style="margin-bottom:8px">☀ Surplus solar: ${r(surplus_pv)} kW → battery charging while EVs charge.</div>`;
+  if (throttle) notes += `<div class="note warn" style="margin-bottom:8px">⚡ EVMS throttling: ${state.ac_n} AC chargers reduced ${r(state.ac_w,1)} → ${r(t_ac_w,1)} kW each. DC chargers prioritised at full ${state.dc_w} kW. EV budget: ${r(ev_budget)} kW.</div>`;
+  if (unserved>1) notes += `<div class="note crit" style="margin-bottom:8px">✗ ${r(unserved)} kW unserved. Consider adding an inverter (+100 kW AC output) or reducing active sessions.</div>`;
+  if (state.soc<=15) notes += `<div class="note crit" style="margin-bottom:8px">⛔ Battery at minimum reserve. No discharge available — system on solar only.</div>`;
+  else if (state.soc<30) notes += `<div class="note warn" style="margin-bottom:8px">⚠ Low SOC (${state.soc}%). Consider reducing sessions or waiting for solar recharge.</div>`;
+  if (state.inv_n>1) notes += `<div class="note info" style="margin-bottom:8px">ℹ ${state.inv_n} inverters in parallel · ${INV_MAX} kW combined AC · ${state.inv_n*state.batt_per_inv} battery modules · ${fmt(BESS_CAP)} kWh total.</div>`;
+  document.getElementById('notes-area').innerHTML = notes;
+
+  calcCost();
+}
+
+function calcCost() {
+  const PRICE_INV      = 10000;   // € per inverter
+  const PRICE_BAT      = 2500;    // € per battery module (12 kWh)
+  const PRICE_CARPORT  = 166000;  // € carport structure + installation fixed
+  const PRICE_ELEC_INV = 15000;   // € electrical installation per inverter
+  const PRICE_AC_CHG   = 1000;    // € per AC charger unit
+  const PRICE_DC_CHG   = 40000;   // € per DC fast charger unit
+
+  const total_modules = state.inv_n * state.batt_per_inv;
+  const BESS_CAP = state.inv_n * state.batt_per_inv * MODULE_KWH;
+
+  // AC chargers: 24 installed (always fixed for 24-space carport)
+  const ac_charger_count = 24;
+  const dc_charger_count = 2;
+
+  const c_inv     = state.inv_n * PRICE_INV;
+  const c_bat     = total_modules * PRICE_BAT;
+  const c_carport = PRICE_CARPORT;
+  const c_elec    = state.inv_n * PRICE_ELEC_INV;
+  const c_ac_chg  = ac_charger_count * PRICE_AC_CHG;
+  const c_dc_chg  = dc_charger_count * PRICE_DC_CHG;
+  const c_total   = c_inv + c_bat + c_carport + c_elec + c_ac_chg + c_dc_chg;
+
+  const c_per_kwh   = BESS_CAP > 0 ? c_total / BESS_CAP : 0;
+  const c_per_space = c_total / 24;
+  const c_per_kw    = c_total / (state.inv_n * INV_KW);
+
+  const eu = v => '€\u202f' + Math.round(v).toLocaleString('de-DE');
+
+  const lines = [
+    { color:'var(--purple)', label:'Hybrid inverter(s)', qty:`${state.inv_n} ×`, unit: eu(PRICE_INV)+' /unit',   total: c_inv },
+    { color:'var(--green)',  label:'Battery modules (SigenStack BAT 12.0)', qty:`${total_modules} ×`, unit: eu(PRICE_BAT)+' /mod', total: c_bat },
+    { color:'var(--orange)', label:'Solar carport structure + installation', qty:'1 ×', unit: eu(PRICE_CARPORT), total: c_carport },
+    { color:'var(--blue)',   label:'Electrical installation (inverter + battery)', qty:`${state.inv_n} ×`, unit: eu(PRICE_ELEC_INV)+' /inv', total: c_elec },
+    { color:'var(--blue)',   label:'AC chargers (Type 2, 11/22 kW)', qty:`${ac_charger_count} ×`, unit: eu(PRICE_AC_CHG)+' /unit', total: c_ac_chg },
+    { color:'var(--green)',  label:'DC fast chargers (dual-port, up to 120 kW)', qty:`${dc_charger_count} ×`, unit: eu(PRICE_DC_CHG)+' /unit', total: c_dc_chg },
+  ];
+
+  document.getElementById('cost-lines').innerHTML = lines.map(l => `
+    <div class="cost-line">
+      <div class="cost-dot" style="background:${l.color}"></div>
+      <div class="cost-line-label">${l.label}</div>
+      <div class="cost-line-qty">${l.qty}</div>
+      <div class="cost-line-unit">${l.unit}</div>
+      <div class="cost-line-total">${eu(l.total)}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('cost-total-sub').textContent =
+    `${state.inv_n} inverter${state.inv_n>1?'s':''} · ${total_modules} battery modules · 24-space carport`;
+  document.getElementById('cost-total-val').textContent = eu(c_total);
+
+  document.getElementById('cost-kpi-row').innerHTML = `
+    <div class="cost-kpi">
+      <div class="cost-kpi-label">Cost per kWh storage</div>
+      <div class="cost-kpi-val">${eu(c_per_kwh)}</div>
+      <div class="cost-kpi-sub">${Math.round(BESS_CAP)} kWh total BESS</div>
+    </div>
+    <div class="cost-kpi">
+      <div class="cost-kpi-label">Cost per parking space</div>
+      <div class="cost-kpi-val">${eu(c_per_space)}</div>
+      <div class="cost-kpi-sub">24 spaces total</div>
+    </div>
+    <div class="cost-kpi">
+      <div class="cost-kpi-label">Cost per kW AC output</div>
+      <div class="cost-kpi-val">${eu(c_per_kw)}</div>
+      <div class="cost-kpi-sub">${state.inv_n * INV_KW} kW total</div>
+    </div>
+  `;
+}
+
+syncUI();
+setScenario('low');
+</script>
+</body>
+</html>
